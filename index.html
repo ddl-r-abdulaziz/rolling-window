@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The rolling window</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #f5f2ea;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  @media (prefers-color-scheme: dark) {
+    html, body { background: #1a1a18; }
+  }
+  .rw-scene {
+    position: relative;
+    width: 340px;
+    height: 180px;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #dcedf7;
+  }
+  .rw-ground { position: absolute; left: 0; right: 0; bottom: 0; height: 58px; background: #8fb56b; }
+  .rw-road   { position: absolute; left: 0; right: 0; bottom: 30px; height: 28px; background: #5f5e5a; }
+  .rw-cloud  { position: absolute; background: #ffffff; border-radius: 20px; opacity: .9; }
+  @media (prefers-color-scheme: dark) {
+    .rw-scene  { background: #16283a; }
+    .rw-ground { background: #2c4526; }
+    .rw-cloud  { background: #3a4f63; }
+  }
+</style>
+</head>
+<body>
+
+<div class="rw-scene" id="rwScene" role="img" aria-label="A window frame rolling along a road, dates passing beneath it, with a highlighted trailing two-week span: the rolling window.">
+  <div class="rw-cloud" style="width:56px;height:16px;top:18px;left:36px;"></div>
+  <div class="rw-cloud" style="width:70px;height:18px;top:34px;left:200px;"></div>
+
+  <div id="rwSpan" style="position:absolute;bottom:30px;height:28px;background:rgba(126,119,221,0.30);border-left:2px dashed #7F77DD;border-right:2px dashed #7F77DD;"></div>
+
+  <div class="rw-road">
+    <div id="rwDashes" style="position:absolute;left:0;right:0;top:12px;height:4px;background:repeating-linear-gradient(90deg,#f0e9d8 0 20px,transparent 20px 40px);"></div>
+  </div>
+  <div class="rw-ground"></div>
+
+  <div id="rwSigns" style="position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;"></div>
+
+  <div id="rwWin" style="position:absolute;width:46px;height:46px;bottom:56px;will-change:transform;">
+    <svg width="46" height="46" viewBox="0 0 84 84" aria-hidden="true">
+      <rect x="3" y="3" width="78" height="78" rx="6" fill="#8a5a33" stroke="#5c3a1e" stroke-width="3"/>
+      <rect x="10" y="10" width="64" height="64" rx="2" fill="#bfe3f2"/>
+      <line x1="42" y1="10" x2="42" y2="74" stroke="#5c3a1e" stroke-width="4"/>
+      <line x1="10" y1="42" x2="74" y2="42" stroke="#5c3a1e" stroke-width="4"/>
+      <path d="M14 30 L34 12 L38 16 L18 34 Z" fill="#ffffff" opacity="0.55"/>
+    </svg>
+  </div>
+</div>
+
+<script>
+(function () {
+  var scene = document.getElementById('rwScene');
+  var win = document.getElementById('rwWin');
+  var span = document.getElementById('rwSpan');
+  var signs = document.getElementById('rwSigns');
+  var dashes = document.getElementById('rwDashes');
+
+  var DAY = 26, WINDOW_DAYS = 14, SPEED = 32, R = 23;
+  var start = new Date(); start.setHours(0, 0, 0, 0);
+  var worldX = 0;
+
+  var pool = [];
+  for (var i = 0; i < 22; i++) {
+    var d = document.createElement('div');
+    d.style.cssText = 'position:absolute;bottom:30px;width:2px;';
+    d.innerHTML =
+      '<div style="position:absolute;bottom:28px;left:-1px;width:2px;height:8px;background:#f0e9d8;"></div>' +
+      '<div style="position:absolute;bottom:2px;left:-12px;width:24px;text-align:center;font-size:9px;line-height:1.2;font-weight:500;color:#f0e9d8;"></div>';
+    signs.appendChild(d);
+    pool.push(d);
+  }
+
+  function layout() {
+    var W = scene.clientWidth;
+    var winCX = Math.round(W * 0.85);
+    var spanW = WINDOW_DAYS * DAY;
+
+    win.style.left = (winCX - R) + 'px';
+    win.style.transform = 'rotate(' + (worldX * 180 / (Math.PI * R)) + 'deg)';
+
+    span.style.left = (winCX - spanW) + 'px';
+    span.style.width = spanW + 'px';
+
+    dashes.style.backgroundPosition = (-worldX % 40) + 'px 0';
+
+    var firstDay = Math.floor((worldX - winCX) / DAY) - 1;
+    for (var i = 0; i < pool.length; i++) {
+      var dayIdx = firstDay + i;
+      var x = dayIdx * DAY - worldX + winCX;
+      var el = pool[i];
+      if (x < -40 || x > W + 40) { el.style.display = 'none'; continue; }
+      el.style.display = 'block';
+      el.style.left = x + 'px';
+      var date = new Date(start.getTime());
+      date.setDate(date.getDate() + dayIdx);
+      var mo = date.toLocaleDateString(undefined, { month: 'short' });
+      el.children[1].innerHTML = mo + '<br>' + date.getDate();
+    }
+  }
+
+  var last = null;
+  function tick(ts) {
+    if (last == null) last = ts;
+    var dt = (ts - last) / 1000; last = ts;
+    worldX += SPEED * dt;
+    layout();
+    requestAnimationFrame(tick);
+  }
+
+  layout();
+  requestAnimationFrame(tick);
+})();
+</script>
+
+</body>
+</html>
